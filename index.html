@@ -1,12 +1,221 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>تطبيق X1</title>
-  </head>
-    <body>
-      <div id="root"></div>
-      <script type="module" src="./main.js"></script>
-    </body>
-</html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام X1 للمحاسبة والفواتير</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap');
+        body { font-family: 'Cairo', sans-serif; }
+        /* Print Styles for Small Identity-Sized Receipts */
+        @media print {
+            body { background: white; color: black; padding: 0; margin: 0; }
+            header, .no-print, form, .tab-buttons, sidebar, button { display: none !important; }
+            .print-receipt { display: block !important; width: 80mm; padding: 5mm; border: none; box-shadow: none; }
+            .print-receipt table { width: 100%; border-collapse: collapse; }
+            .print-receipt th, .print-receipt td { padding: 4px; text-align: right; font-size: 12px; border-bottom: 1px dashed #000; }
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-900 min-h-screen pb-10">
+
+    <div id="notification" class="fixed top-4 left-4 z-50 hidden flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg text-white transition-all duration-300">
+        <i id="notification-icon" class="fa-solid"></i>
+        <span id="notification-text" class="font-medium text-sm"></span>
+    </div>
+
+    <header class="bg-slate-900 text-white shadow-md sticky top-0 z-40 no-print">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="bg-emerald-500 px-3 py-1.5 rounded-lg font-black text-2xl tracking-wider text-slate-950 shadow-sm">X1</div>
+                <div>
+                    <h1 class="text-lg font-bold tracking-tight">نظام إدارة المحاسبة والمبيعات</h1>
+                    <p class="text-xs text-slate-400">منظومة ذكية مدمجة ومستقرة</p>
+                </div>
+            </div>
+            <div class="flex bg-slate-800 p-1 rounded-lg border border-slate-700 tab-buttons">
+                <button onclick="switchTab('billing')" id="btn-billing" class="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all bg-emerald-500 text-slate-950">
+                    <i class="fa-solid fa-file-invoice-dollar"></i> نافذة البيع والفواتير
+                </button>
+                <button onclick="switchTab('index')" id="btn-index" class="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all text-slate-300 hover:text-white">
+                    <i class="fa-solid fa-boxes-stacked"></i> فهرس المنتجات الثابتة
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 mt-6">
+        
+        <div id="tab-billing" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-2 space-y-6">
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 no-print">
+                    <h2 class="text-md font-bold text-slate-800 mb-4 flex items-center gap-2 border-b pb-2">
+                        <i class="fa-solid fa-circle-plus text-emerald-500"></i> <span id="form-title">إضافة عنصر جديد للفاتورة</span>
+                    </h2>
+                    <form id="invoice-form" onsubmit="handleFormSubmit(event)" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                        <input type="hidden" id="item-id">
+                        <div class="md:col-span-2 space-y-1">
+                            <label class="text-xs font-semibold text-slate-600">اسم المنتج / الخدمة</label>
+                            <input type="text" id="item-name" placeholder="مثال: بلاط سيراميك 60*60" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition" required>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-xs font-semibold text-slate-600">التصنيف / الملاحظة</label>
+                            <input type="text" id="item-type" placeholder="اختياري" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-xs font-semibold text-slate-600">سعر الوحدة</label>
+                            <input type="number" step="any" id="item-price" placeholder="0.00" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition" required>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-xs font-semibold text-slate-600">الكمية</label>
+                            <input type="number" min="1" id="item-quantity" value="1" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 transition" required>
+                        </div>
+                        <div class="md:col-span-4 flex justify-between gap-3 pt-2">
+                            <button type="button" onclick="saveCurrentToConfigIndex()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium px-4 py-2.5 rounded-lg text-xs flex items-center gap-1.5 transition">
+                                <i class="fa-solid fa-floppy-disk"></i> حفظ كمنتج دائم في الفهرس
+                            </button>
+                            <button type="submit" id="submit-btn" class="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold px-6 py-2.5 rounded-lg text-xs flex items-center gap-1.5 shadow-sm transition">
+                                <i class="fa-solid fa-plus"></i> إدراج في القائمة الحالية
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden print-receipt">
+                    <div class="px-6 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center no-print">
+                        <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-list text-slate-500"></i> قائمة المشتريات الحالية
+                        </h3>
+                        <span id="items-count-badge" class="bg-slate-200 text-slate-800 px-2.5 py-0.5 rounded-full text-xs font-bold">0 عناصر</span>
+                    </div>
+                    
+                    <div id="empty-state" class="p-12 text-center text-slate-400 space-y-2 no-print">
+                        <i class="fa-solid fa-file-invoice text-4xl text-slate-300"></i>
+                        <p class="text-sm font-medium">لا توجد مواد مدرجة في الفاتورة الحالية حتى الآن</p>
+                    </div>
+
+                    <div id="table-container" class="hidden overflow-x-auto">
+                        <table class="w-full text-right border-collapse">
+                            <thead>
+                                <tr class="bg-slate-100 border-b border-slate-200 text-xs font-bold text-slate-600 no-print">
+                                    <th class="p-4">المنتج / الوصف</th>
+                                    <th class="p-4">التصنيف</th>
+                                    <th class="p-4 text-center">السعر</th>
+                                    <th class="p-4 text-center">الكمية</th>
+                                    <th class="p-4 text-left">الإجمالي</th>
+                                    <th class="p-4 text-center w-24 no-print">إجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="invoice-tbody" class="divide-y divide-slate-200 text-sm">
+                                </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-6 no-print">
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-4">
+                    <h3 class="text-sm font-bold text-slate-800 border-b pb-2">ملخص الحساب المالي</h3>
+                    <div class="flex justify-between items-center text-sm text-slate-600">
+                        <span>المجموع الفرعي:</span>
+                        <span id="subtotal-display">0.00</span>
+                    </div>
+                    <div class="flex justify-between items-center border-t pt-3">
+                        <span class="text-base font-bold text-slate-900">المجموع الكلي النهائي:</span>
+                        <span id="total-display" class="text-2xl font-black text-emerald-600">0.00</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3 pt-2">
+                        <button onclick="window.print()" class="bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 px-4 rounded-lg text-xs flex items-center justify-center gap-2 shadow-sm transition">
+                            <i class="fa-solid fa-print"></i> طباعة إيصال فوري
+                        </button>
+                        <button onclick="archiveInvoiceCloud()" class="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black py-3 px-4 rounded-lg text-xs flex items-center justify-center gap-2 shadow-sm transition">
+                            <i class="fa-solid fa-cloud-arrow-up"></i> ترحيل وحفظ محلي
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                    <h3 class="text-xs font-bold text-slate-700 mb-3 flex items-center gap-1">
+                        <i class="fa-solid fa-magnifying-glass text-slate-400"></i> سحب سريع من الفهرس
+                    </h3>
+                    <div id="quick-lookup-container" class="space-y-2 max-h-60 overflow-y-auto divide-y">
+                        </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-index" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hidden no-print">
+            <div class="p-6 bg-slate-50 border-b flex flex-col md:flex-row justify-between items-center gap-4">
+                <div>
+                    <h2 class="text-base font-bold text-slate-800">إدارة مستودع المنتجات الثابتة (الفهرس)</h2>
+                    <p class="text-xs text-slate-500">المنتجات المحفوظة هنا تظهر في السحب السريع لإصدار الفواتير بضغطة واحدة</p>
+                </div>
+                <div class="relative w-full md:w-64">
+                    <i class="fa-solid fa-magnifying-glass absolute right-3 top-2.5 text-slate-400 text-xs"></i>
+                    <input type="text" id="index-search" oninput="renderIndexTable()" placeholder="بحث باسم المنتج أو الصنف..." class="w-full bg-white border border-slate-300 rounded-lg pr-9 pl-4 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                </div>
+            </div>
+            <div id="index-empty-state" class="p-16 text-center text-slate-400 space-y-2">
+                <i class="fa-solid fa-box-open text-4xl text-slate-300"></i>
+                <p class="text-sm font-medium">لم يتم العثور على أي منتجات في الفهرس</p>
+            </div>
+            <div id="index-table-container" class="hidden overflow-x-auto">
+                <table class="w-full text-right border-collapse">
+                    <thead>
+                        <tr class="bg-slate-100 border-b text-xs font-bold text-slate-600">
+                            <th class="p-4">اسم المادة</th>
+                            <th class="p-4">التصنيف الرئيسي</th>
+                            <th class="p-4 text-center">السعر الافتراضي للوحدة</th>
+                            <th class="p-4 text-center w-24">إجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody id="index-tbody" class="divide-y text-sm">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="history-section" class="mt-10 bg-white rounded-xl shadow-sm border border-slate-200 p-6 no-print hidden">
+            <h3 class="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-clock-rotate-left text-slate-500"></i> السجل المتزامن للفواتير المرحّلة
+            </h3>
+            <div id="history-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                </div>
+        </div>
+
+    </main>
+
+    <script>
+        // State Management
+        let items = [];
+        let productIndex = JSON.parse(localStorage.getItem('x1_product_index')) || [];
+        let savedReceipts = JSON.parse(localStorage.getItem('x1_saved_receipts')) || [];
+        let currentTab = 'billing';
+        let editId = null;
+
+        // Initialize Application
+        document.addEventListener("DOMContentLoaded", () => {
+            renderAll();
+        });
+
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('notification');
+            const icon = document.getElementById('notification-icon');
+            const text = document.getElementById('notification-text');
+            
+            text.innerText = message;
+            toast.className = `fixed top-4 left-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg text-white transition-all duration-300 ${type === 'error' ? 'bg-red-600' : 'bg-emerald-600'}`;
+            icon.className = type === 'error' ? 'fa-solid fa-circle-xmark' : 'fa-solid fa-circle-check';
+            
+            toast.classList.remove('hidden');
+            setTimeout(() => toast.classList.add('hidden'), 3000);
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            document.getElementById('tab-billing').classList.toggle('hidden', tab !== 'billing');
+            document.getElementById('tab-index').classList.toggle('hidden', tab !== 'index');
+            
+            document.getElementById('btn-billing').className
