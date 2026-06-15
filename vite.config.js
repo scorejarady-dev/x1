@@ -3,8 +3,5 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  server: {
-    port: 3000,
-    open: true
-  }
+  base: '/x1/', // هذا السطر ضروري جداً لكي تعمل المسارات بشكل صحيح على GitHub Pages
 })
